@@ -19,8 +19,17 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.pushBtn.setOnClickListener {
-            viewModel.accept(UiAction.Message("Hola"))
+        binding.btn1.setOnClickListener {
+            viewModel.accept(UiAction.Search("New Query 1"))
+        }
+        binding.btn2.setOnClickListener {
+            viewModel.accept(UiAction.Scroll("default_query"))
+        }
+        binding.btn3.setOnClickListener {
+            viewModel.accept(UiAction.Scroll("New Query 1"))
+        }
+        binding.btn4.setOnClickListener {
+//            viewModel.accept(UiAction.Btn2("action Btn2"))
         }
         subscribeToObservable()
     }
@@ -28,8 +37,16 @@ class MainActivity : AppCompatActivity() {
     private fun subscribeToObservable() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.state.collect {
-                    binding.text.text = it.text
+                launch {
+                    viewModel.state1.collect {
+                        binding.multiText.text =
+                            "Query: ${it.query}\nLastQueryScrolled: ${it.lastQueryScrolled}"
+                    }
+                }
+                launch {
+                    viewModel.state2.collect {
+//                        binding.multiText.text = "${binding.multiText.text} ${it}"
+                    }
                 }
             }
         }

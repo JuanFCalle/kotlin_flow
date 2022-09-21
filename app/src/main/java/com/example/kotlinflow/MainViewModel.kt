@@ -2,35 +2,61 @@ package com.example.kotlinflow
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 
 class MainViewModel : ViewModel() {
 
-    val state: StateFlow<UiState>
+    val state1: StateFlow<UiState>
+    val state2: StateFlow<String>
     val accept: (UiAction) -> Unit
 
     init {
         val actionStateFlow = MutableSharedFlow<UiAction>()
-        val changeText = actionStateFlow
-            .filterIsInstance<UiAction.Message>()
+        val searches = actionStateFlow
+            .filterIsInstance<UiAction.Search>()
             .distinctUntilChanged()
-            .onStart { emit(UiAction.Message("onStart UiAction.Message")) }
+            .onStart { emit(UiAction.Search("onStart search default_query")) }
+        val queriesScrolled = actionStateFlow
+            .filterIsInstance<UiAction.Scroll>()
+            .distinctUntilChanged()
+            .onStart { emit(UiAction.Scroll("onStart scroll default_query.")) }
 
-        state = changeText
-            .map {
+        state2 = searches
+            .flatMapLatest {
+                flow {
+                    emit("1${it.query}\n")
+                    delay(100)
+                    emit("2${it.query}\n")
+                    delay(100)
+                    emit("3${it.query}\n")
+                }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000),
+                initialValue = ""
+            )
+
+
+        state1 = combine(
+            searches,
+            queriesScrolled,
+            ::Pair
+        )
+            .map { (search, queriesScrolled) ->
                 UiState(
-                    text = it.message
+                    query = search.query,
+                    lastQueryScrolled = queriesScrolled.currentQuery
                 )
             }
             .stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(),
+                started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000),
                 initialValue = UiState()
             )
-
-
 
         accept = { action ->
             viewModelScope.launch {
@@ -41,9 +67,11 @@ class MainViewModel : ViewModel() {
 }
 
 sealed interface UiAction {
-    data class Message(val message: String) : UiAction
+    data class Search(val query: String) : UiAction
+    data class Scroll(val currentQuery: String) : UiAction
 }
 
 data class UiState(
-    val text: String = "initial UiState"
+    val query: String = "default_query",
+    val lastQueryScrolled: String = "default_query"
 )
